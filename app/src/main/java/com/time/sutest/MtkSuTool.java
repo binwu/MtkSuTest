@@ -78,7 +78,7 @@ public class MtkSuTool {
     public void runExec(String cmd) {
         try {
             Process process = Runtime.getRuntime().exec("./" + RELEASE_FILE_PATH + " -c " + cmd);
-            new ReadThread(process.getInputStream(), "read").start();
+            new ReadThread(process.getInputStream(), process.getErrorStream(), "read").start();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -86,10 +86,12 @@ public class MtkSuTool {
 
     class ReadThread extends Thread {
         InputStream inputStream;
+        InputStream errorInputStream;
         String name = "None Name";
 
-        public ReadThread(InputStream inputStream, String name) {
+        public ReadThread(InputStream inputStream, InputStream errorInputStream, String name) {
             this.inputStream = inputStream;
+            this.errorInputStream = errorInputStream;
             this.name = name;
         }
 
@@ -99,16 +101,25 @@ public class MtkSuTool {
             try {
                 byte[] buffer = new byte[1024 * 8];
                 int length = 0;
-                while (true) {
-                    while ((length = inputStream.read(buffer)) != -1) {
-                        byte[] tmp = new byte[length];
-                        System.arraycopy(buffer, 0, tmp, 0, length);
-                        Log.i(TAG, "run: " + new String((tmp)));
-                        if (weakReferenceCommandResultCallback != null && weakReferenceCommandResultCallback.get() != null) {
-                            weakReferenceCommandResultCallback.get().onResult(new String(tmp));
-                        }
-                        buffer = new byte[1024 * 8];
+
+                while ((length = inputStream.read(buffer)) != -1) {
+                    byte[] tmp = new byte[length];
+                    System.arraycopy(buffer, 0, tmp, 0, length);
+                    Log.i(TAG, "run: " + new String((tmp)));
+                    if (weakReferenceCommandResultCallback != null && weakReferenceCommandResultCallback.get() != null) {
+                        weakReferenceCommandResultCallback.get().onResult(new String(tmp));
                     }
+                    buffer = new byte[1024 * 8];
+                }
+
+                while ((length = errorInputStream.read(buffer)) != -1) {
+                    byte[] tmp = new byte[length];
+                    System.arraycopy(buffer, 0, tmp, 0, length);
+                    Log.i(TAG, "run: " + new String((tmp)));
+                    if (weakReferenceCommandResultCallback != null && weakReferenceCommandResultCallback.get() != null) {
+                        weakReferenceCommandResultCallback.get().onResult(new String(tmp));
+                    }
+                    buffer = new byte[1024 * 8];
                 }
 
 
